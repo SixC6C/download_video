@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip Saver – Preview & Download TikTok & Instagram Videos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #090d16;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #151d38 0%, #090d16 75%);
+  --card: rgba(21, 29, 48, 0.75);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-border-glow: rgba(59, 130, 246, 0.3);
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --accent: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  --accent-hover: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  --accent-ink: #ffffff;
+  --ig-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  --tiktok-color: #00f2fe;
+  --bad: #ef4444;
+  --bad-bg: rgba(239, 68, 68, 0.12);
+  --ok: #10b981;
+  --ok-bg: rgba(16, 185, 129, 0.12);
+  --input-bg: rgba(13, 19, 34, 0.85);
+  --radius: 16px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="light"] {
+    --bg: #f1f5f9;
+    --bg-gradient: radial-gradient(circle at 50% 0%, #e2e8f0 0%, #f1f5f9 85%);
+    --card: rgba(255, 255, 255, 0.9);
+    --card-border: rgba(0, 0, 0, 0.08);
+    --card-border-glow: rgba(59, 130, 246, 0.25);
+    --ink: #0f172a;
+    --muted: #64748b;
+    --accent: #2563eb;
+    --accent-gradient: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    --accent-hover: linear-gradient(135deg, #1d4ed8 0%, #4338ca 100%);
+    --accent-ink: #ffffff;
+    --bad: #dc2626;
+    --bad-bg: #fee2e2;
+    --ok: #059669;
+    --ok-bg: #d1fae5;
+    --input-bg: #ffffff;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 32px 16px;
+  overflow-x: hidden;
+}
+
+main {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.brand-badge .stars {
+  background: linear-gradient(135deg, #00f2fe, #ff007f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+h1 {
+  font-size: clamp(2rem, 5.5vw, 2.65rem);
+  line-height: 1.15;
+  margin: 0 0 10px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-align: center;
+  background: linear-gradient(180deg, var(--ink) 0%, var(--muted) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+p.lead {
+  color: var(--muted);
+  margin: 0 0 24px;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.box {
+  width: 100%;
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--card-border);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.box:focus-within {
+  border-color: var(--card-border-glow);
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  position: relative;
+}
+
+.input-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 14px 40px 14px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--input-bg);
+  color: var(--ink);
+  transition: all 0.2s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.btn-clear {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+  display: none;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+.btn-clear:hover {
+  color: var(--ink);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+@media (min-width: 480px) {
+  .btn-group.split {
+    grid-template-columns: 1.6fr 1fr;
+  }
+}
+
+button.primary {
+  background: var(--accent-gradient);
+  color: var(--accent-ink);
+  border: none;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.35);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+}
+
+button.secondary {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--card-border);
+  font-size: 0.95rem;
+}
+
+button.secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+#msg {
+  display: none;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+#msg.show {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bad {
+  background: var(--bad-bg);
+  color: var(--bad);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ok {
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.info {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Video Preview Container */
+.preview-card {
+  display: none;
+  margin-top: 20px;
+  background: rgba(9, 13, 22, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.preview-card.show {
+  display: block;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.preview-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-pill {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.video-player-wrapper {
+  position: relative;
+  width: 100%;
+  max-height: 480px;
+  background: #000000;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+video#videoPlayer {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  border-radius: 12px;
+  outline: none;
+  display: block;
+}
+
+.video-meta-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.meta-chip {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.meta-chip strong {
+  color: var(--ink);
+}
+
+.preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.btn-download-main {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: none;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.btn-download-main:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+
+.preview-sub-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tags {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  border: 1px solid var(--card-border);
+}
+
+small {
+  display: block;
+  margin-top: 24px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* Progress bar */
+.progress-bar-container {
+  display: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  width: 30%;
+  background: var(--accent-gradient);
+  border-radius: 4px;
+  animation: indeterminate 1.5s infinite linear;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%) scaleX(0.2); }
+  50% { transform: translateX(50%) scaleX(0.6); }
+  100% { transform: translateX(200%) scaleX(0.2); }
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand-badge">
+    <span class="stars">✦</span> TikTok & Instagram Previewer & Downloader
+  </div>
+  <h1>Preview Before Downloading</h1>
+  <p class="lead">Watch video previews directly in your browser with full player controls, then download the full HD MP4 instantly.</p>
+  
+  <div class="box">
+    <div class="row">
+      <div class="input-wrap">
+        <input id="url" type="url" placeholder="Paste TikTok or Instagram reel link here..." aria-label="Video link" autocomplete="off" spellcheck="false">
+        <button id="clearInput" class="btn-clear" type="button" title="Clear input">✕</button>
+      </div>
+      <button id="paste" type="button" title="Paste from clipboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+        Paste
+      </button>
+    </div>
+    
+    <div class="btn-group split">
+      <button id="goPreview" class="primary" type="button">
+        <span class="spinner" id="spinner"></span>
+        <svg id="previewIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <span id="btnText">Preview Video</span>
+      </button>
+      
+      <button id="goDirect" class="secondary" type="button" title="Download immediately without waiting for preview">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Quick Download
+      </button>
+    </div>
+
+    <div id="progressBar" class="progress-bar-container">
+      <div class="progress-bar-fill"></div>
+    </div>
+    
+    <div id="msg" role="status" aria-live="polite"></div>
+
+    <!-- Video Preview Card -->
+    <div id="previewCard" class="preview-card">
+      <div class="preview-header">
+        <div class="preview-title">
+          <span>🎬</span> Video Preview
+        </div>
+        <div class="preview-pill" id="readyPill">Ready to Download</div>
+      </div>
+
+      <div class="video-player-wrapper">
+        <video id="videoPlayer" controls playsinline preload="metadata">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      <div class="video-meta-bar" id="metaBar">
+        <div class="meta-chip">
+          <span>📐</span> <strong id="videoRes">Detecting...</strong>
+        </div>
+        <div class="meta-chip">
+          <span>⏱️</span> <strong id="videoDuration">0:00</strong>
+        </div>
+        <div class="meta-chip">
+          <span>📦</span> <strong id="videoSize">-- MB</strong>
+        </div>
+        <div class="meta-chip">
+          <span>⚡</span> <strong>MP4</strong>
+        </div>
+      </div>
+
+      <div class="preview-actions">
+        <button id="btnDownloadPreview" class="btn-download-main" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span id="downloadBtnLabel">Download Video (MP4)</span>
+        </button>
+
+        <div class="preview-sub-actions">
+          <button id="btnFullscreen" class="secondary" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+            Fullscreen
+          </button>
+          <button id="btnClearPreview" class="secondary" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            Clear Video
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tags">
+      <div class="tag">✦ TikTok No Watermark</div>
+      <div class="tag">✦ Instagram Reels & Posts</div>
+      <div class="tag">✦ HD Video Streaming</div>
+      <div class="tag">✦ Fast Temp Cache</div>
+    </div>
+  </div>
+
+  <small>Only download videos you have permission or rights to save. Respect platform guidelines and creators' copyright.</small>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const urlEl = $('url'), msg = $('msg'), pasteBtn = $('paste'), clearInputBtn = $('clearInput');
+const goPreview = $('goPreview'), goDirect = $('goDirect');
+const spinner = $('spinner'), previewIcon = $('previewIcon'), btnText = $('btnText');
+const progressBar = $('progressBar');
+const previewCard = $('previewCard'), videoPlayer = $('videoPlayer');
+const videoRes = $('videoRes'), videoDuration = $('videoDuration'), videoSize = $('videoSize');
+const btnDownloadPreview = $('btnDownloadPreview'), downloadBtnLabel = $('downloadBtnLabel');
+const btnFullscreen = $('btnFullscreen'), btnClearPreview = $('btnClearPreview');
+
+// State
+let currentBlob = null;
+let currentObjectUrl = null;
+let currentFilename = 'video.mp4';
+
+// Determine API base URL dynamically
+const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') && (location.port === '3000' || location.port === '')
+  ? '' 
+  : 'http://localhost:3000';
+
+const allowed = /^(https?:\/\/)?([a-z0-9-]+\.)*(tiktok\.com|instagram\.com|instagr\.am)\//i;
+
+function say(text, type) {
+  if (!text) {
+    msg.className = '';
+    msg.style.display = 'none';
+    msg.textContent = '';
+    return;
+  }
+  msg.textContent = text;
+  msg.className = (type || 'info') + ' show';
+  msg.style.display = 'flex';
+}
+
+function setLoading(isLoading, text) {
+  goPreview.disabled = isLoading;
+  goDirect.disabled = isLoading;
+  pasteBtn.disabled = isLoading;
+  spinner.style.display = isLoading ? 'inline-block' : 'none';
+  previewIcon.style.display = isLoading ? 'none' : 'inline-block';
+  btnText.textContent = isLoading ? (text || 'Fetching video...') : 'Preview Video';
+  progressBar.style.display = isLoading ? 'block' : 'none';
+}
+
+function formatDuration(seconds) {
+  if (isNaN(seconds) || seconds < 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return mins + ':' + (secs < 10 ? '0' : '') + secs;
+}
+
+function cleanupBlob() {
+  if (currentObjectUrl) {
+    videoPlayer.pause();
+    videoPlayer.removeAttribute('src');
+    videoPlayer.load();
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
+  currentBlob = null;
+}
+
+function clearPreview() {
+  cleanupBlob();
+  previewCard.classList.remove('show');
+  videoRes.textContent = '--';
+  videoDuration.textContent = '0:00';
+  videoSize.textContent = '-- MB';
+}
+
+// Input clear button toggle
+urlEl.addEventListener('input', () => {
+  clearInputBtn.style.display = urlEl.value ? 'block' : 'none';
+});
+
+clearInputBtn.onclick = () => {
+  urlEl.value = '';
+  clearInputBtn.style.display = 'none';
+  clearPreview();
+  say('');
+  urlEl.focus();
+};
+
+pasteBtn.onclick = async () => {
+  try {
+    const clip = await navigator.clipboard.readText();
+    if (clip) {
+      urlEl.value = clip.trim();
+      clearInputBtn.style.display = 'block';
+      say('');
+      // Auto trigger preview for quick smooth UX
+      loadVideo(true);
+    }
+  } catch {
+    say('Clipboard access blocked. Please paste directly into the input box.', 'bad');
+  }
+};
+
+async function loadVideo(isPreviewMode) {
+  let link = urlEl.value.trim();
+  if (!link) return say('Please paste a TikTok or Instagram link first.', 'bad');
+  if (!allowed.test(link)) return say('Unsupported link. Please paste a valid TikTok or Instagram video link.', 'bad');
+  
+  if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
+  
+  setLoading(true, isPreviewMode ? 'Preparing preview...' : 'Downloading video...');
+  say(isPreviewMode ? 'Fetching video stream from server for preview...' : 'Fetching and preparing video download...', 'info');
+
+  try {
+    const endpoint = isPreviewMode 
+      ? `${API_BASE}/api/download?url=${encodeURIComponent(link)}&preview=1`
+      : `${API_BASE}/api/download?url=${encodeURIComponent(link)}&download=1`;
+      
+    const res = await fetch(endpoint);
+    
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || ('Server returned an error (' + res.status + ')'));
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get('content-disposition') || '';
+    let filename = 'clip-' + Date.now() + '.mp4';
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) filename = match[1];
+
+    currentFilename = filename;
+    cleanupBlob();
+    currentBlob = blob;
+    currentObjectUrl = URL.createObjectURL(blob);
+
+    const sizeMb = (blob.size / (1024 * 1024)).toFixed(2);
+    videoSize.textContent = `${sizeMb} MB`;
+    downloadBtnLabel.textContent = `Download Video (${sizeMb} MB)`;
+
+    if (isPreviewMode) {
+      // Setup Video Preview Player
+      videoPlayer.src = currentObjectUrl;
+      videoPlayer.load();
+      previewCard.classList.add('show');
+      say('Video loaded! You can preview it below or download it immediately.', 'ok');
+      
+      // Auto-play muted preview or let user play
+      videoPlayer.play().catch(() => {
+        // Autoplay policy prevented playback, user can click play
+      });
+      
+      // Scroll smoothly to preview
+      previewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      // Direct Download Mode
+      triggerDownload(currentObjectUrl, currentFilename);
+      say(`Download completed! Saved as ${currentFilename} (${sizeMb} MB)`, 'ok');
+    }
+  } catch (e) {
+    if (e.message && e.message.includes('Failed to fetch')) {
+      say('Cannot connect to backend server. Make sure "node server.js" is running on http://localhost:3000', 'bad');
+    } else {
+      say(e.message, 'bad');
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+function triggerDownload(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'video.mp4';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// Video player metadata event listener
+videoPlayer.addEventListener('loadedmetadata', () => {
+  if (videoPlayer.videoWidth && videoPlayer.videoHeight) {
+    videoRes.textContent = `${videoPlayer.videoWidth} × ${videoPlayer.videoHeight}`;
+  } else {
+    videoRes.textContent = 'HD MP4';
+  }
+  videoDuration.textContent = formatDuration(videoPlayer.duration);
+});
+
+// Download button inside preview card
+btnDownloadPreview.onclick = () => {
+  if (!currentObjectUrl && !currentBlob) {
+    say('No video loaded to download.', 'bad');
+    return;
+  }
+  triggerDownload(currentObjectUrl, currentFilename);
+  say(`Download started: ${currentFilename}`, 'ok');
+};
+
+// Fullscreen button
+btnFullscreen.onclick = () => {
+  if (videoPlayer.requestFullscreen) {
+    videoPlayer.requestFullscreen();
+  } else if (videoPlayer.webkitRequestFullscreen) {
+    videoPlayer.webkitRequestFullscreen();
+  } else if (videoPlayer.msRequestFullscreen) {
+    videoPlayer.msRequestFullscreen();
+  }
+};
+
+// Clear preview button
+btnClearPreview.onclick = () => {
+  clearPreview();
+  say('');
+};
+
+goPreview.onclick = () => loadVideo(true);
+goDirect.onclick = () => loadVideo(false);
+
+urlEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    loadVideo(true);
+  }
+});
+</script>
+</body>
+</html>

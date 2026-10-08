@@ -1,0 +1,17 @@
+{
+  "name": "download_video",
+  "version": "1.0.0",
+  "description": "TikTok & Instagram video previewer and downloader web app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "tiktok-downloader",
+    "instagram-downloader",
+    "video-previewer",
+    "reels-downloader"
+  ],
+  "author": "SixC6C",
+  "license": "MIT"
+}
