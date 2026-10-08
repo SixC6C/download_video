@@ -39,20 +39,22 @@ if (extraPaths.length > 0) {
 }
 
 function getYtDlpRunner() {
-  try {
-    const res = spawnSync('yt-dlp', ['--version'], { encoding: 'utf8', env: process.env });
-    if (!res.error && res.status === 0) return { cmd: 'yt-dlp', baseArgs: [] };
-  } catch {}
+  const candidates = [
+    { cmd: 'yt-dlp', baseArgs: [] },
+    { cmd: 'python3', baseArgs: ['-m', 'yt_dlp'] },
+    { cmd: 'python', baseArgs: ['-m', 'yt_dlp'] },
+    { cmd: 'py', baseArgs: ['-m', 'yt_dlp'] }
+  ];
 
-  try {
-    const res = spawnSync('python', ['-m', 'yt_dlp', '--version'], { encoding: 'utf8', env: process.env });
-    if (!res.error && res.status === 0) return { cmd: 'python', baseArgs: ['-m', 'yt_dlp'] };
-  } catch {}
-
-  try {
-    const res = spawnSync('py', ['-m', 'yt_dlp', '--version'], { encoding: 'utf8', env: process.env });
-    if (!res.error && res.status === 0) return { cmd: 'py', baseArgs: ['-m', 'yt_dlp'] };
-  } catch {}
+  for (const item of candidates) {
+    try {
+      const res = spawnSync(item.cmd, [...item.baseArgs, '--version'], { encoding: 'utf8', env: process.env });
+      if (!res.error && res.status === 0) {
+        console.log(`Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
+        return item;
+      }
+    } catch {}
+  }
 
   return { cmd: 'yt-dlp', baseArgs: [] };
 }
@@ -231,6 +233,10 @@ const server = http.createServer(async (req, res) => {
     const args = [
       ...runner.baseArgs,
       '--no-playlist',
+      '--no-warnings',
+      '--no-check-certificates',
+      '--extractor-retries', '3',
+      '--socket-timeout', '30',
       '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       '-f', 'mp4/best[ext=mp4]/best',
       '--merge-output-format', 'mp4',

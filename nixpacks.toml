@@ -1,9 +1,12 @@
 # Railway Nixpacks configuration for Node.js + Python + yt-dlp + ffmpeg
 [phases.setup]
-nixPkgs = ["nodejs_20", "python3", "ffmpeg", "yt-dlp"]
+nixPkgs = ["nodejs_20", "python3", "python3Packages.pip", "ffmpeg", "yt-dlp"]
 
 [phases.build]
-cmds = ["npm install"]
+cmds = [
+  "python3 -m pip install --break-system-packages -U yt-dlp || true",
+  "npm install"
+]
 
 [start]
 cmd = "npm start"
