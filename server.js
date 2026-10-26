@@ -75,67 +75,70 @@ async function ensureYtDlpBinary() {
   const binPath = path.join(__dirname, 'bin', binName);
   const userBin = path.join(os.homedir(), '.local', 'bin', 'yt-dlp');
 
-  const candidates = [
-    ...(fs.existsSync(binPath) && fs.statSync(binPath).size > 1000000 ? [{ cmd: binPath, baseArgs: [] }] : []),
-    ...(fs.existsSync(userBin) ? [{ cmd: userBin, baseArgs: [] }] : []),
-    ...(fs.existsSync('/root/.local/bin/yt-dlp') ? [{ cmd: '/root/.local/bin/yt-dlp', baseArgs: [] }] : []),
-    ...(fs.existsSync('/usr/local/bin/yt-dlp') ? [{ cmd: '/usr/local/bin/yt-dlp', baseArgs: [] }] : []),
-    ...(fs.existsSync('/usr/bin/yt-dlp') ? [{ cmd: '/usr/bin/yt-dlp', baseArgs: [] }] : []),
-    { cmd: 'yt-dlp', baseArgs: [] },
-    { cmd: 'python3', baseArgs: ['-m', 'yt_dlp'] },
-    ...(fs.existsSync('/usr/bin/python3') ? [{ cmd: '/usr/bin/python3', baseArgs: ['-m', 'yt_dlp'] }] : []),
-    ...(fs.existsSync('/usr/local/bin/python3') ? [{ cmd: '/usr/local/bin/python3', baseArgs: ['-m', 'yt_dlp'] }] : []),
-    { cmd: 'python', baseArgs: ['-m', 'yt_dlp'] },
-    { cmd: 'py', baseArgs: ['-m', 'yt_dlp'] }
-  ];
+    const minExpectedSize = isWin ? 10000000 : 25000000;
+    const candidates = [
+      ...(fs.existsSync(binPath) && fs.statSync(binPath).size > minExpectedSize ? [{ cmd: binPath, baseArgs: [] }] : []),
+      ...(fs.existsSync(userBin) && fs.statSync(userBin).size > minExpectedSize ? [{ cmd: userBin, baseArgs: [] }] : []),
+      ...(fs.existsSync('/root/.local/bin/yt-dlp') ? [{ cmd: '/root/.local/bin/yt-dlp', baseArgs: [] }] : []),
+      ...(fs.existsSync('/usr/local/bin/yt-dlp') ? [{ cmd: '/usr/local/bin/yt-dlp', baseArgs: [] }] : []),
+      ...(fs.existsSync('/usr/bin/yt-dlp') ? [{ cmd: '/usr/bin/yt-dlp', baseArgs: [] }] : []),
+      { cmd: 'yt-dlp', baseArgs: [] },
+      { cmd: 'python3', baseArgs: ['-m', 'yt_dlp'] },
+      ...(fs.existsSync('/usr/bin/python3') ? [{ cmd: '/usr/bin/python3', baseArgs: ['-m', 'yt_dlp'] }] : []),
+      ...(fs.existsSync('/usr/local/bin/python3') ? [{ cmd: '/usr/local/bin/python3', baseArgs: ['-m', 'yt_dlp'] }] : []),
+      { cmd: 'python', baseArgs: ['-m', 'yt_dlp'] },
+      { cmd: 'py', baseArgs: ['-m', 'yt_dlp'] }
+    ];
 
-  for (const item of candidates) {
+    for (const item of candidates) {
+      try {
+        const res = spawnSync(item.cmd, [...item.baseArgs, '--version'], { encoding: 'utf8', env: process.env });
+        if (!res.error && res.status === 0) {
+          console.log(`[runner] Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
+          cachedRunner = item;
+          return item;
+        }
+      } catch {}
+    }
+
+    // Not found in system: automatically acquire self-contained standalone binary (with embedded Python)
     try {
-      const res = spawnSync(item.cmd, [...item.baseArgs, '--version'], { encoding: 'utf8', env: process.env });
-      if (!res.error && res.status === 0) {
-        console.log(`[runner] Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
-        cachedRunner = item;
-        return item;
+      const binDir = path.join(__dirname, 'bin');
+      if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+
+      // Note: yt-dlp_linux is the PyInstaller ELF binary that has embedded Python runtime!
+      const dlUrl = isWin
+        ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+        : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux';
+
+      console.log(`[runner] Downloading self-contained standalone yt-dlp binary from ${dlUrl}...`);
+      const resp = await fetch(dlUrl, { redirect: 'follow' });
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        fs.writeFileSync(binPath, buf);
+        if (!isWin) fs.chmodSync(binPath, 0o755);
+        console.log(`[runner] Successfully installed standalone yt-dlp binary (${(buf.length / (1024 * 1024)).toFixed(2)} MB) to ${binPath}`);
+        cachedRunner = { cmd: binPath, baseArgs: [] };
+        return cachedRunner;
       }
-    } catch {}
+    } catch (err) {
+      console.error('[runner] Standalone yt-dlp download failed:', err.message);
+    }
+
+    return { cmd: 'yt-dlp', baseArgs: [] };
   }
 
-  // Not found in system: automatically acquire standalone binary using native Node.js fetch (no curl needed!)
-  try {
-    const binDir = path.join(__dirname, 'bin');
-    if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
-
-    const dlUrl = isWin
-      ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
-      : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-
-    console.log(`[runner] Downloading standalone yt-dlp binary from ${dlUrl}...`);
-    const resp = await fetch(dlUrl, { redirect: 'follow' });
-    if (resp.ok) {
-      const buf = Buffer.from(await resp.arrayBuffer());
-      fs.writeFileSync(binPath, buf);
-      if (!isWin) fs.chmodSync(binPath, 0o755);
-      console.log(`[runner] Successfully installed standalone yt-dlp binary (${buf.length} bytes) to ${binPath}`);
+  function getYtDlpRunner() {
+    if (cachedRunner) return cachedRunner;
+    const isWin = process.platform === 'win32';
+    const binPath = path.join(__dirname, 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
+    const minExpectedSize = isWin ? 10000000 : 25000000;
+    if (fs.existsSync(binPath) && fs.statSync(binPath).size > minExpectedSize) {
       cachedRunner = { cmd: binPath, baseArgs: [] };
       return cachedRunner;
     }
-  } catch (err) {
-    console.error('[runner] Standalone yt-dlp download failed:', err.message);
+    return { cmd: 'yt-dlp', baseArgs: [] };
   }
-
-  return { cmd: 'yt-dlp', baseArgs: [] };
-}
-
-function getYtDlpRunner() {
-  if (cachedRunner) return cachedRunner;
-  const isWin = process.platform === 'win32';
-  const binPath = path.join(__dirname, 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
-  if (fs.existsSync(binPath) && fs.statSync(binPath).size > 1000000) {
-    cachedRunner = { cmd: binPath, baseArgs: [] };
-    return cachedRunner;
-  }
-  return { cmd: 'yt-dlp', baseArgs: [] };
-}
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
