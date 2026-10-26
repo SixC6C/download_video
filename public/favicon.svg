@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#151e36"/>
+      <stop offset="100%" stop-color="#080c16"/>
+    </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="50%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe"/>
+      <stop offset="35%" stop-color="#6366f1"/>
+      <stop offset="70%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect x="6" y="6" width="116" height="116" rx="30" fill="url(#bgGrad)" stroke="url(#borderGrad)" stroke-width="5"/>
+
+  <!-- Play & Reel Symbol with TikTok & Instagram Sunset Gradient -->
+  <path d="M 48 35 C 48 31.8 51.5 29.8 54.3 31.4 L 95.8 55.4 C 98.6 57 98.6 61 95.8 62.6 L 54.3 86.6 C 51.5 88.2 48 86.2 48 83 Z" fill="url(#brandGrad)"/>
+
+  <!-- Modern Download Arrow Badge -->
+  <circle cx="94" cy="94" r="22" fill="#0b101d" stroke="url(#brandGrad)" stroke-width="3.5"/>
+  <path d="M 94 84 L 94 100 M 87 94 L 94 101 L 101 94" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
