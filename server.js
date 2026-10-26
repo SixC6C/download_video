@@ -46,23 +46,43 @@ setInterval(() => {
   }
 }, 60000);
 
-// Add common Python Scripts paths to PATH so yt-dlp and ffmpeg are always found
+// Add common Linux/Railway and Windows paths to PATH so yt-dlp and ffmpeg are always found
 const extraPaths = [
+  path.join(__dirname, 'bin'),
+  path.join(os.homedir(), '.local', 'bin'),
+  '/root/.local/bin',
+  '/usr/local/bin',
+  '/usr/bin',
+  '/nix/var/nix/profiles/default/bin',
+  '/root/.nix-profile/bin',
   path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python313', 'Scripts'),
   path.join(process.env.APPDATA || '', 'Python', 'Python313', 'Scripts'),
   path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'Scripts'),
-  path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'Scripts'),
-  path.join(__dirname, 'bin')
+  path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python311', 'Scripts')
 ].filter(p => fs.existsSync(p));
 
 if (extraPaths.length > 0) {
   process.env.PATH = extraPaths.join(path.delimiter) + path.delimiter + (process.env.PATH || '');
 }
 
+let cachedRunner = null;
+
 function getYtDlpRunner() {
+  if (cachedRunner) return cachedRunner;
+
+  const binPath = path.join(__dirname, 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+  const userBin = path.join(os.homedir(), '.local', 'bin', 'yt-dlp');
+
   const candidates = [
+    ...(fs.existsSync(binPath) ? [{ cmd: binPath, baseArgs: [] }] : []),
+    ...(fs.existsSync(userBin) ? [{ cmd: userBin, baseArgs: [] }] : []),
+    ...(fs.existsSync('/root/.local/bin/yt-dlp') ? [{ cmd: '/root/.local/bin/yt-dlp', baseArgs: [] }] : []),
+    ...(fs.existsSync('/usr/local/bin/yt-dlp') ? [{ cmd: '/usr/local/bin/yt-dlp', baseArgs: [] }] : []),
+    ...(fs.existsSync('/usr/bin/yt-dlp') ? [{ cmd: '/usr/bin/yt-dlp', baseArgs: [] }] : []),
     { cmd: 'yt-dlp', baseArgs: [] },
     { cmd: 'python3', baseArgs: ['-m', 'yt_dlp'] },
+    ...(fs.existsSync('/usr/bin/python3') ? [{ cmd: '/usr/bin/python3', baseArgs: ['-m', 'yt_dlp'] }] : []),
+    ...(fs.existsSync('/usr/local/bin/python3') ? [{ cmd: '/usr/local/bin/python3', baseArgs: ['-m', 'yt_dlp'] }] : []),
     { cmd: 'python', baseArgs: ['-m', 'yt_dlp'] },
     { cmd: 'py', baseArgs: ['-m', 'yt_dlp'] }
   ];
@@ -71,9 +91,30 @@ function getYtDlpRunner() {
     try {
       const res = spawnSync(item.cmd, [...item.baseArgs, '--version'], { encoding: 'utf8', env: process.env });
       if (!res.error && res.status === 0) {
+        console.log(`Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
+        cachedRunner = item;
         return item;
       }
     } catch {}
+  }
+
+  // On-demand self-healing download if missing in container
+  try {
+    const binDir = path.join(__dirname, 'bin');
+    if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
+    const dlUrl = process.platform === 'win32'
+      ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
+      : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+    console.log(`Attempting on-demand standalone yt-dlp download from ${dlUrl}...`);
+    const curlRes = spawnSync('curl', ['-L', dlUrl, '-o', binPath], { env: process.env });
+    if (curlRes.status === 0 && fs.existsSync(binPath)) {
+      if (process.platform !== 'win32') fs.chmodSync(binPath, 0o755);
+      console.log('Successfully acquired standalone yt-dlp binary at', binPath);
+      cachedRunner = { cmd: binPath, baseArgs: [] };
+      return cachedRunner;
+    }
+  } catch (err) {
+    console.error('On-demand yt-dlp download failed:', err.message);
   }
 
   return { cmd: 'yt-dlp', baseArgs: [] };
