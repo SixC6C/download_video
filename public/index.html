@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Clip Saver – Preview & Download TikTok & Instagram Videos</title>
+<title>Clip Saver – Download TikTok & Instagram Reels</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -20,8 +20,17 @@
   --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
   --accent-hover: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
   --accent-ink: #ffffff;
-  --ig-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  
+  /* Platform Themes */
   --tiktok-color: #00f2fe;
+  --tiktok-pink: #ff007f;
+  --tiktok-gradient: linear-gradient(135deg, #00f2fe 0%, #ff007f 100%);
+  --tiktok-glow: rgba(0, 242, 254, 0.25);
+  
+  --ig-gradient: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  --ig-color: #e1306c;
+  --ig-glow: rgba(225, 48, 108, 0.25);
+
   --bad: #ef4444;
   --bad-bg: rgba(239, 68, 68, 0.12);
   --ok: #10b981;
@@ -134,6 +143,214 @@ p.lead {
   box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.15);
 }
 
+/* ========================================================
+   PLATFORM SELECTOR (TikTok vs Instagram Reels)
+   ======================================================== */
+.platform-options-container {
+  margin-bottom: 18px;
+}
+
+.platform-selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.platform-selector-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.platform-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.platform-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  user-select: none;
+}
+
+.platform-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.platform-tab.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+/* Active State: TikTok */
+.platform-tab[data-platform="tiktok"].active {
+  border-color: #00f2fe;
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.08) 0%, rgba(255, 0, 127, 0.04) 100%);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.2), inset 0 0 14px rgba(0, 242, 254, 0.05);
+}
+
+/* Active State: Instagram */
+.platform-tab[data-platform="instagram"].active {
+  border-color: #e1306c;
+  background: linear-gradient(135deg, rgba(240, 148, 51, 0.08) 0%, rgba(225, 48, 108, 0.08) 50%, rgba(188, 24, 136, 0.05) 100%);
+  box-shadow: 0 0 20px rgba(225, 48, 108, 0.22), inset 0 0 14px rgba(240, 148, 51, 0.06);
+}
+
+.platform-icon-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  transition: all 0.22s ease;
+}
+
+.platform-tab:hover .platform-icon-circle {
+  transform: scale(1.06);
+}
+
+/* TikTok Icon Styling */
+.platform-tab[data-platform="tiktok"] .platform-icon-circle {
+  color: #00f2fe;
+}
+
+.platform-tab[data-platform="tiktok"].active .platform-icon-circle {
+  background: rgba(0, 242, 254, 0.16);
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.35);
+  color: #ffffff;
+}
+
+/* Instagram Icon Styling */
+.platform-tab[data-platform="instagram"] .platform-icon-circle {
+  color: #ff5483;
+}
+
+.platform-tab[data-platform="instagram"].active .platform-icon-circle {
+  background: linear-gradient(135deg, rgba(240, 148, 51, 0.25) 0%, rgba(225, 48, 108, 0.3) 50%, rgba(188, 24, 136, 0.25) 100%);
+  box-shadow: 0 0 14px rgba(225, 48, 108, 0.35);
+  color: #ffffff;
+}
+
+.platform-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.platform-title {
+  font-weight: 700;
+  font-size: 0.96rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.platform-desc {
+  font-size: 0.74rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.platform-status-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.platform-tab[data-platform="tiktok"].active .platform-status-dot {
+  background: #00f2fe;
+  box-shadow: 0 0 8px #00f2fe;
+}
+
+.platform-tab[data-platform="instagram"].active .platform-status-dot {
+  background: #e1306c;
+  box-shadow: 0 0 8px #e1306c;
+}
+
+/* Platform Context Helper Banner */
+.platform-helper-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--card-border);
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.platform-helper-banner span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.platform-badge-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.badge-tt {
+  background: rgba(0, 242, 254, 0.12);
+  color: #00f2fe;
+  border: 1px solid rgba(0, 242, 254, 0.3);
+}
+
+.badge-ig {
+  background: rgba(225, 48, 108, 0.12);
+  color: #ff608d;
+  border: 1px solid rgba(225, 48, 108, 0.3);
+}
+
+/* Dynamic Input Focus Accents based on active platform */
+.box[data-active-platform="tiktok"] input:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 0 3px rgba(0, 242, 254, 0.22);
+}
+
+.box[data-active-platform="instagram"] input:focus {
+  border-color: #e1306c;
+  box-shadow: 0 0 0 3px rgba(225, 48, 108, 0.25);
+}
+
+/* Input Form Row */
 .row {
   display: flex;
   gap: 8px;
@@ -336,6 +553,14 @@ button:disabled {
   gap: 6px;
 }
 
+.preview-platform-chip {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-left: 4px;
+}
+
 .preview-pill {
   font-size: 0.75rem;
   font-weight: 700;
@@ -482,10 +707,54 @@ small {
   <h1>Preview Before Downloading</h1>
   <p class="lead">Watch video previews directly in your browser with full player controls, then download the full HD MP4 instantly.</p>
   
-  <div class="box">
+  <div class="box" id="mainBox" data-active-platform="tiktok">
+    <!-- Platform Choice Selection -->
+    <div class="platform-options-container">
+      <div class="platform-selector-header">
+        <span class="platform-selector-label">Choose Platform:</span>
+      </div>
+      <div class="platform-tabs" role="tablist" aria-label="Select Video Platform">
+        <!-- TikTok Option Tab -->
+        <button id="tabTikTok" class="platform-tab active" role="tab" aria-selected="true" data-platform="tiktok" type="button">
+          <div class="platform-icon-circle">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.82 4.47 6.3 6.3 0 0 0 1.86-4.47V8.71a8.28 8.28 0 0 0 4.91 1.6V6.86a4.85 4.85 0 0 1-1-.17z"/>
+            </svg>
+          </div>
+          <div class="platform-text">
+            <span class="platform-title">TikTok</span>
+            <span class="platform-desc">No Watermark MP4</span>
+          </div>
+          <span class="platform-status-dot"></span>
+        </button>
+
+        <!-- Instagram Reels Option Tab -->
+        <button id="tabInstagram" class="platform-tab" role="tab" aria-selected="false" data-platform="instagram" type="button">
+          <div class="platform-icon-circle">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+          </div>
+          <div class="platform-text">
+            <span class="platform-title">Instagram Reels</span>
+            <span class="platform-desc">Reels & Clips HD</span>
+          </div>
+          <span class="platform-status-dot"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Platform Context Helper Banner -->
+    <div class="platform-helper-banner">
+      <span id="platformHelperText">
+        <span>🎵</span> Paste any TikTok video URL to save watermark-free.
+      </span>
+      <span id="platformHelperBadge" class="platform-badge-pill badge-tt">TikTok</span>
+    </div>
+
     <div class="row">
       <div class="input-wrap">
-        <input id="url" type="url" placeholder="Paste TikTok or Instagram reel link here..." aria-label="Video link" autocomplete="off" spellcheck="false">
+        <input id="url" type="url" placeholder="Paste TikTok video link (e.g. https://vm.tiktok.com/...)" aria-label="Video link" autocomplete="off" spellcheck="false">
         <button id="clearInput" class="btn-clear" type="button" title="Clear input">✕</button>
       </div>
       <button id="paste" type="button" title="Paste from clipboard">
@@ -518,6 +787,7 @@ small {
       <div class="preview-header">
         <div class="preview-title">
           <span>🎬</span> Video Preview
+          <span id="previewPlatformChip" class="preview-platform-chip badge-tt">TikTok</span>
         </div>
         <div class="preview-pill" id="readyPill">Ready to Download</div>
       </div>
@@ -575,6 +845,10 @@ small {
 
 <script>
 const $ = id => document.getElementById(id);
+const mainBox = $('mainBox');
+const tabTikTok = $('tabTikTok'), tabInstagram = $('tabInstagram');
+const platformHelperText = $('platformHelperText'), platformHelperBadge = $('platformHelperBadge');
+const previewPlatformChip = $('previewPlatformChip');
 const urlEl = $('url'), msg = $('msg'), pasteBtn = $('paste'), clearInputBtn = $('clearInput');
 const goPreview = $('goPreview'), goDirect = $('goDirect');
 const spinner = $('spinner'), previewIcon = $('previewIcon'), btnText = $('btnText');
@@ -585,16 +859,89 @@ const btnDownloadPreview = $('btnDownloadPreview'), downloadBtnLabel = $('downlo
 const btnFullscreen = $('btnFullscreen'), btnClearPreview = $('btnClearPreview');
 
 // State
+let currentPlatform = 'tiktok'; // 'tiktok' | 'instagram'
 let currentBlob = null;
 let currentObjectUrl = null;
 let currentFilename = 'video.mp4';
+
+// Regex constants
+const TIKTOK_REGEX = /(tiktok\.com)/i;
+const IG_REGEX = /(instagram\.com|instagr\.am)/i;
+const allowed = /^(https?:\/\/)?([a-z0-9-]+\.)*(tiktok\.com|instagram\.com|instagr\.am)\//i;
 
 // Determine API base URL dynamically
 const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:') && (location.port === '3000' || location.port === '')
   ? '' 
   : 'http://localhost:3000';
 
-const allowed = /^(https?:\/\/)?([a-z0-9-]+\.)*(tiktok\.com|instagram\.com|instagr\.am)\//i;
+function setPlatform(platform, isUserAction = true) {
+  currentPlatform = platform;
+  const isTT = platform === 'tiktok';
+
+  tabTikTok.classList.toggle('active', isTT);
+  tabTikTok.setAttribute('aria-selected', isTT ? 'true' : 'false');
+
+  tabInstagram.classList.toggle('active', !isTT);
+  tabInstagram.setAttribute('aria-selected', !isTT ? 'true' : 'false');
+
+  mainBox.setAttribute('data-active-platform', platform);
+
+  if (isTT) {
+    urlEl.placeholder = 'Paste TikTok link (e.g. https://vm.tiktok.com/... or tiktok.com/@user/...)';
+    platformHelperText.innerHTML = '<span>🎵</span> Paste any TikTok video URL to save watermark-free.';
+    platformHelperBadge.textContent = 'TikTok';
+    platformHelperBadge.className = 'platform-badge-pill badge-tt';
+  } else {
+    urlEl.placeholder = 'Paste Instagram Reel link (e.g. https://www.instagram.com/reel/...)';
+    platformHelperText.innerHTML = '<span>📸</span> Paste any Instagram Reel or Post URL to save in 1080p HD.';
+    platformHelperBadge.textContent = 'Instagram';
+    platformHelperBadge.className = 'platform-badge-pill badge-ig';
+  }
+
+  if (isUserAction) {
+    const val = urlEl.value.trim();
+    if (val) {
+      if (isTT && IG_REGEX.test(val)) {
+        say('Notice: An Instagram link is in the input box. Switch to "Instagram Reels" or paste a TikTok link.', 'info');
+      } else if (!isTT && TIKTOK_REGEX.test(val)) {
+        say('Notice: A TikTok link is in the input box. Switch to "TikTok" or paste an Instagram link.', 'info');
+      } else {
+        say('');
+      }
+    }
+  }
+}
+
+tabTikTok.onclick = () => setPlatform('tiktok', true);
+tabInstagram.onclick = () => setPlatform('instagram', true);
+
+// Keyboard accessible navigation for tabs
+[tabTikTok, tabInstagram].forEach(tab => {
+  tab.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const nextPlatform = tab.getAttribute('data-platform') === 'tiktok' ? 'instagram' : 'tiktok';
+      setPlatform(nextPlatform, true);
+      const nextTab = nextPlatform === 'tiktok' ? tabTikTok : tabInstagram;
+      nextTab.focus();
+    }
+  });
+});
+
+function detectPlatform(url) {
+  if (TIKTOK_REGEX.test(url)) return 'tiktok';
+  if (IG_REGEX.test(url)) return 'instagram';
+  return null;
+}
+
+function checkAndAutoSwitchPlatform(url) {
+  const detected = detectPlatform(url);
+  if (detected && detected !== currentPlatform) {
+    setPlatform(detected, false);
+    say(`Detected ${detected === 'tiktok' ? 'TikTok' : 'Instagram Reels'} link! Switched option automatically.`, 'info');
+    return true;
+  }
+  return false;
+}
 
 function say(text, type) {
   if (!text) {
@@ -625,28 +972,24 @@ function formatDuration(seconds) {
   return mins + ':' + (secs < 10 ? '0' : '') + secs;
 }
 
-function cleanupBlob() {
-  if (currentObjectUrl) {
-    videoPlayer.pause();
-    videoPlayer.removeAttribute('src');
-    videoPlayer.load();
-    URL.revokeObjectURL(currentObjectUrl);
-    currentObjectUrl = null;
-  }
-  currentBlob = null;
-}
+let currentVideoLink = '';
 
 function clearPreview() {
-  cleanupBlob();
+  videoPlayer.pause();
+  videoPlayer.removeAttribute('src');
+  videoPlayer.removeAttribute('poster');
+  videoPlayer.load();
   previewCard.classList.remove('show');
   videoRes.textContent = '--';
   videoDuration.textContent = '0:00';
-  videoSize.textContent = '-- MB';
+  videoSize.textContent = 'HD MP4';
+  currentVideoLink = '';
 }
 
-// Input clear button toggle
+// Input clear button toggle & Auto platform detection
 urlEl.addEventListener('input', () => {
   clearInputBtn.style.display = urlEl.value ? 'block' : 'none';
+  checkAndAutoSwitchPlatform(urlEl.value.trim());
 });
 
 clearInputBtn.onclick = () => {
@@ -664,7 +1007,8 @@ pasteBtn.onclick = async () => {
       urlEl.value = clip.trim();
       clearInputBtn.style.display = 'block';
       say('');
-      // Auto trigger preview for quick smooth UX
+      checkAndAutoSwitchPlatform(clip.trim());
+      // Instantly load preview
       loadVideo(true);
     }
   } catch {
@@ -672,80 +1016,98 @@ pasteBtn.onclick = async () => {
   }
 };
 
-async function loadVideo(isPreviewMode) {
-  let link = urlEl.value.trim();
-  if (!link) return say('Please paste a TikTok or Instagram link first.', 'bad');
-  if (!allowed.test(link)) return say('Unsupported link. Please paste a valid TikTok or Instagram video link.', 'bad');
-  
-  if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
-  
-  setLoading(true, isPreviewMode ? 'Preparing preview...' : 'Downloading video...');
-  say(isPreviewMode ? 'Fetching video stream from server for preview...' : 'Fetching and preparing video download...', 'info');
-
-  try {
-    const endpoint = isPreviewMode 
-      ? `${API_BASE}/api/download?url=${encodeURIComponent(link)}&preview=1`
-      : `${API_BASE}/api/download?url=${encodeURIComponent(link)}&download=1`;
-      
-    const res = await fetch(endpoint);
-    
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || ('Server returned an error (' + res.status + ')'));
-    }
-
-    const blob = await res.blob();
-    const disposition = res.headers.get('content-disposition') || '';
-    let filename = 'clip-' + Date.now() + '.mp4';
-    const match = disposition.match(/filename="?([^";]+)"?/);
-    if (match && match[1]) filename = match[1];
-
-    currentFilename = filename;
-    cleanupBlob();
-    currentBlob = blob;
-    currentObjectUrl = URL.createObjectURL(blob);
-
-    const sizeMb = (blob.size / (1024 * 1024)).toFixed(2);
-    videoSize.textContent = `${sizeMb} MB`;
-    downloadBtnLabel.textContent = `Download Video (${sizeMb} MB)`;
-
-    if (isPreviewMode) {
-      // Setup Video Preview Player
-      videoPlayer.src = currentObjectUrl;
-      videoPlayer.load();
-      previewCard.classList.add('show');
-      say('Video loaded! You can preview it below or download it immediately.', 'ok');
-      
-      // Auto-play muted preview or let user play
-      videoPlayer.play().catch(() => {
-        // Autoplay policy prevented playback, user can click play
-      });
-      
-      // Scroll smoothly to preview
-      previewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    } else {
-      // Direct Download Mode
-      triggerDownload(currentObjectUrl, currentFilename);
-      say(`Download completed! Saved as ${currentFilename} (${sizeMb} MB)`, 'ok');
-    }
-  } catch (e) {
-    if (e.message && e.message.includes('Failed to fetch')) {
-      say('Cannot connect to backend server. Make sure "node server.js" is running on http://localhost:3000', 'bad');
-    } else {
-      say(e.message, 'bad');
-    }
-  } finally {
-    setLoading(false);
-  }
-}
-
-function triggerDownload(url, filename) {
+function triggerDownloadUrl(url, filename) {
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename || 'video.mp4';
+  if (filename) a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+async function loadVideo(isPreviewMode) {
+  let link = urlEl.value.trim();
+  const platformLabel = currentPlatform === 'tiktok' ? 'TikTok' : 'Instagram Reels';
+
+  if (!link) {
+    return say(`Please paste a ${platformLabel} link first.`, 'bad');
+  }
+
+  // Auto-switch platform if link clearly belongs to the other platform
+  if (currentPlatform === 'tiktok' && IG_REGEX.test(link)) {
+    setPlatform('instagram', false);
+    say('Detected Instagram link! Switched to Instagram Reels option for you.', 'info');
+  } else if (currentPlatform === 'instagram' && TIKTOK_REGEX.test(link)) {
+    setPlatform('tiktok', false);
+    say('Detected TikTok link! Switched to TikTok option for you.', 'info');
+  }
+
+  if (!allowed.test(link)) {
+    return say(`Unsupported link. Please paste a valid ${currentPlatform === 'tiktok' ? 'TikTok' : 'Instagram Reels'} link.`, 'bad');
+  }
+  
+  if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
+  
+  const activeLabel = currentPlatform === 'tiktok' ? 'TikTok' : 'Instagram Reel';
+  currentVideoLink = link;
+
+  if (isPreviewMode) {
+    setLoading(true, `Connecting to ${activeLabel}...`);
+    say(`Fetching video preview for ${activeLabel}...`, 'info');
+
+    try {
+      // 1. Resolve metadata in ~1 second
+      const infoUrl = `${API_BASE}/api/info?url=${encodeURIComponent(link)}&platform=${currentPlatform}`;
+      const infoRes = await fetch(infoUrl);
+      
+      if (!infoRes.ok) {
+        const data = await infoRes.json().catch(() => ({}));
+        throw new Error(data.error || `Could not load video information (${infoRes.status})`);
+      }
+
+      const info = await infoRes.json();
+
+      // Instantly show poster thumbnail and preview card
+      if (info.cover) {
+        videoPlayer.poster = info.cover;
+      }
+      if (info.duration) {
+        videoDuration.textContent = formatDuration(info.duration);
+      }
+      if (previewPlatformChip) {
+        const isTT = currentPlatform === 'tiktok';
+        previewPlatformChip.textContent = isTT ? 'TikTok' : 'Instagram Reel';
+        previewPlatformChip.className = 'preview-platform-chip ' + (isTT ? 'badge-tt' : 'badge-ig');
+      }
+
+      // 2. Stream video directly to the HTML5 video player without waiting for full download
+      const streamUrl = `${API_BASE}/api/stream?url=${encodeURIComponent(link)}&platform=${currentPlatform}`;
+      videoPlayer.src = streamUrl;
+      videoPlayer.load();
+      previewCard.classList.add('show');
+      
+      videoPlayer.play().catch(() => {
+        // Autoplay policy prevented playback, user can click play
+      });
+
+      downloadBtnLabel.textContent = `Download Video (Full HD MP4)`;
+      say(`${activeLabel} preview ready! Video is streaming.`, 'ok');
+      previewCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+      if (e.message && e.message.includes('Failed to fetch')) {
+        say('Cannot connect to backend server. Make sure "node server.js" is running on port 3000.', 'bad');
+      } else {
+        say(e.message, 'bad');
+      }
+    } finally {
+      setLoading(false);
+    }
+  } else {
+    // Direct Download Mode: immediately trigger browser download without waiting
+    const downloadUrl = `${API_BASE}/api/download?url=${encodeURIComponent(link)}&platform=${currentPlatform}`;
+    triggerDownloadUrl(downloadUrl, `${currentPlatform}-${Date.now()}.mp4`);
+    say(`Download started! Your ${activeLabel} video will save shortly.`, 'ok');
+  }
 }
 
 // Video player metadata event listener
@@ -755,17 +1117,20 @@ videoPlayer.addEventListener('loadedmetadata', () => {
   } else {
     videoRes.textContent = 'HD MP4';
   }
-  videoDuration.textContent = formatDuration(videoPlayer.duration);
+  if (videoPlayer.duration && !isNaN(videoPlayer.duration)) {
+    videoDuration.textContent = formatDuration(videoPlayer.duration);
+  }
 });
 
 // Download button inside preview card
 btnDownloadPreview.onclick = () => {
-  if (!currentObjectUrl && !currentBlob) {
+  if (!currentVideoLink) {
     say('No video loaded to download.', 'bad');
     return;
   }
-  triggerDownload(currentObjectUrl, currentFilename);
-  say(`Download started: ${currentFilename}`, 'ok');
+  const downloadUrl = `${API_BASE}/api/download?url=${encodeURIComponent(currentVideoLink)}&platform=${currentPlatform}`;
+  triggerDownloadUrl(downloadUrl, `${currentPlatform}-${Date.now()}.mp4`);
+  say(`Download started! Saving full video...`, 'ok');
 };
 
 // Fullscreen button

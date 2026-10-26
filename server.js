@@ -4,23 +4,44 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn, spawnSync } = require('child_process');
+const { Readable } = require('stream');
+
+// Safety handlers to prevent process termination on client aborts or network timeouts
+process.on('uncaughtException', err => {
+  if (err.code === 'ECONNRESET' || err.code === 'EPIPE' || err.name === 'TimeoutError' || err.message?.includes('abort')) {
+    return;
+  }
+  console.error('[Uncaught Exception]', err.message);
+});
+
+process.on('unhandledRejection', reason => {
+  console.error('[Unhandled Rejection]', reason);
+});
 
 const PORT = process.env.PORT || 3000;
 const HOSTS = /(^|\.)(tiktok\.com|instagram\.com|instagr\.am)$/i;
-const hits = new Map(); // simple per-IP rate limit: 40 requests / 10 min
+const hits = new Map(); // simple per-IP rate limit: 60 requests / 10 min
 
-// Video cache for instant preview-to-download transitions
+// Metadata cache for instant preview response
+const metaCache = new Map(); // url -> { platform, title, author, cover, duration, playUrl, directUrl, timestamp }
+
+// Video file cache for instant playback/downloads
 const videoCache = new Map(); // url -> { filePath, size, timestamp }
 
-// Cleanup cache older than 10 minutes
+// Cleanup caches older than 15 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [url, item] of videoCache.entries()) {
-    if (now - item.timestamp > 600000) {
+    if (now - item.timestamp > 900000) {
       if (fs.existsSync(item.filePath)) {
         fs.unlink(item.filePath, () => {});
       }
       videoCache.delete(url);
+    }
+  }
+  for (const [url, item] of metaCache.entries()) {
+    if (now - item.timestamp > 900000) {
+      metaCache.delete(url);
     }
   }
 }, 60000);
@@ -50,7 +71,6 @@ function getYtDlpRunner() {
     try {
       const res = spawnSync(item.cmd, [...item.baseArgs, '--version'], { encoding: 'utf8', env: process.env });
       if (!res.error && res.status === 0) {
-        console.log(`Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
         return item;
       }
     } catch {}
@@ -72,7 +92,7 @@ function limited(ip) {
   const list = (hits.get(ip) || []).filter(t => now - t < 600000);
   list.push(now);
   hits.set(ip, list);
-  return list.length > 40;
+  return list.length > 60;
 }
 
 const json = (res, code, obj) => {
@@ -93,48 +113,129 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
-// Fast direct downloader for TikTok videos
-async function downloadTikTokDirect(url, outPath) {
-  const apiUrl = 'https://www.tikwm.com/api/?url=' + encodeURIComponent(url);
-  const apiRes = await fetch(apiUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-      'Accept': 'application/json'
-    },
-    signal: AbortSignal.timeout(20000)
-  });
-
-  if (!apiRes.ok) throw new Error(`API HTTP ${apiRes.status}`);
-  const data = await apiRes.json();
-  
-  if (data && data.code === 0 && data.data && (data.data.play || data.data.wmplay)) {
-    const videoUrl = data.data.play || data.data.wmplay;
-    const vidRes = await fetch(videoUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-        'Referer': 'https://www.tiktok.com/'
-      },
-      signal: AbortSignal.timeout(45000)
-    });
-    
-    if (!vidRes.ok) throw new Error(`Video fetch HTTP ${vidRes.status}`);
-    const buf = Buffer.from(await vidRes.arrayBuffer());
-    if (buf.length < 1000) throw new Error('Video buffer too small');
-    fs.writeFileSync(outPath, buf);
-    return {
-      title: data.data.title || 'TikTok Video',
-      author: data.data.author?.nickname || data.data.author?.unique_id || '',
-      cover: data.data.cover || data.data.origin_cover || ''
-    };
-  } else {
-    throw new Error(data?.msg || 'Could not parse TikTok link.');
-  }
+// Resolve short URLs (vt.tiktok.com, vm.tiktok.com) to full canonical video URLs in ~300ms
+async function unshortenUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    if (u.hostname.includes('vt.tiktok.com') || u.hostname.includes('vm.tiktok.com')) {
+      const resp = await fetch(rawUrl, {
+        method: 'GET',
+        redirect: 'follow',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (resp.url && resp.url !== rawUrl) {
+        return resp.url;
+      }
+    }
+  } catch {}
+  return rawUrl;
 }
 
-function streamVideoFile(req, res, filePath, isDownload) {
+// Fast metadata resolver (< 1-2 seconds)
+async function resolveVideoMeta(targetUrl, platform) {
+  const cached = metaCache.get(targetUrl);
+  if (cached && (Date.now() - cached.timestamp < 600000)) {
+    return cached;
+  }
+
+  // Resolve short links first if needed (e.g. vt.tiktok.com -> full url)
+  const canonicalUrl = await unshortenUrl(targetUrl);
+  const isTikTok = platform === 'tiktok' || /(tiktok\.com)$/i.test(new URL(canonicalUrl).hostname);
+
+  // TikTok: Direct API resolves in ~800ms
+  if (isTikTok) {
+    try {
+      const apiUrl = 'https://www.tikwm.com/api/?url=' + encodeURIComponent(canonicalUrl);
+      const apiRes = await fetch(apiUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(4000)
+      });
+      if (apiRes.ok) {
+        const data = await apiRes.json();
+        if (data && data.code === 0 && data.data) {
+          const playUrl = data.data.play || data.data.wmplay || '';
+          const meta = {
+            platform: 'tiktok',
+            title: data.data.title || 'TikTok Video',
+            author: data.data.author?.nickname || data.data.author?.unique_id || '',
+            cover: data.data.cover || data.data.origin_cover || '',
+            duration: data.data.duration || 0,
+            playUrl,
+            timestamp: Date.now()
+          };
+          metaCache.set(targetUrl, meta);
+          return meta;
+        }
+      }
+    } catch (e) {
+      console.warn('Fast TikTok API failed, falling back to yt-dlp metadata:', e.message);
+    }
+  }
+
+  // Instagram or TikTok fallback: yt-dlp metadata dump (~1.5-2.5s)
+  const runner = getYtDlpRunner();
+  const args = [
+    ...runner.baseArgs,
+    '--dump-single-json',
+    '--no-playlist',
+    '--no-warnings',
+    '--no-check-certificates',
+    '--socket-timeout', '10',
+    '--', targetUrl
+  ];
+
+  return new Promise((resolve, reject) => {
+    let stdoutData = '';
+    let stderrData = '';
+    const proc = spawn(runner.cmd, args, { env: process.env });
+    const killTimer = setTimeout(() => {
+      proc.kill('SIGKILL');
+      reject(new Error('Metadata resolution timed out.'));
+    }, 12000);
+
+    proc.stdout.on('data', chunk => stdoutData += chunk.toString());
+    proc.stderr.on('data', chunk => stderrData += chunk.toString());
+
+    proc.on('close', code => {
+      clearTimeout(killTimer);
+      if (code === 0 && stdoutData) {
+        try {
+          const d = JSON.parse(stdoutData);
+          const meta = {
+            platform: isTikTok ? 'tiktok' : 'instagram',
+            title: d.title || (isTikTok ? 'TikTok Video' : 'Instagram Reel'),
+            author: d.uploader || d.channel || '',
+            cover: d.thumbnail || '',
+            duration: d.duration || 0,
+            directUrl: d.url || '',
+            timestamp: Date.now()
+          };
+          metaCache.set(targetUrl, meta);
+          return resolve(meta);
+        } catch (err) {
+          return reject(new Error('Failed to parse video information.'));
+        }
+      }
+      reject(new Error(stderrData || 'Could not retrieve video information.'));
+    });
+
+    proc.on('error', err => {
+      clearTimeout(killTimer);
+      reject(err);
+    });
+  });
+}
+
+function streamVideoFile(req, res, filePath, isDownload, customFilename) {
   const stat = fs.statSync(filePath);
   const totalSize = stat.size;
-  const downloadFilename = `video-${Date.now()}.mp4`;
+  const downloadFilename = customFilename || `clip-${Date.now()}.mp4`;
   const range = req.headers.range;
 
   setCors(res);
@@ -164,14 +265,77 @@ function streamVideoFile(req, res, filePath, isDownload) {
     });
 
     const stream = fs.createReadStream(filePath, { start, end });
+    stream.on('error', () => {});
+    res.on('close', () => { try { stream.destroy(); } catch {} });
     stream.pipe(res);
   } else {
     res.writeHead(200, {
       'Content-Length': totalSize
     });
     const stream = fs.createReadStream(filePath);
+    stream.on('error', () => {});
+    res.on('close', () => { try { stream.destroy(); } catch {} });
     stream.pipe(res);
   }
+}
+
+// Full video downloader for persistent cache & direct download
+async function downloadFullVideo(targetUrl, outPath, meta) {
+  const directVideoUrl = (meta && (meta.playUrl || meta.directUrl)) || '';
+  if (directVideoUrl) {
+    try {
+      const vidRes = await fetch(directVideoUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          ...(meta.playUrl ? { 'Referer': 'https://www.tiktok.com/' } : {})
+        },
+        signal: AbortSignal.timeout(30000)
+      });
+      if (vidRes.ok) {
+        const fileStream = fs.createWriteStream(outPath);
+        await new Promise((resolve, reject) => {
+          Readable.fromWeb(vidRes.body).pipe(fileStream);
+          fileStream.on('finish', resolve);
+          fileStream.on('error', reject);
+        });
+        if (fs.existsSync(outPath) && fs.statSync(outPath).size > 1000) {
+          return outPath;
+        }
+      }
+    } catch (e) {
+      console.warn('Direct stream fetch failed, falling back to yt-dlp:', e.message);
+    }
+  }
+
+  const runner = getYtDlpRunner();
+  const args = [
+    ...runner.baseArgs,
+    '--no-playlist',
+    '--no-warnings',
+    '--no-check-certificates',
+    '--extractor-retries', '2',
+    '--socket-timeout', '20',
+    '-f', 'mp4/best[ext=mp4]/best',
+    '--merge-output-format', 'mp4',
+    '-o', outPath,
+    '--', targetUrl
+  ];
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(runner.cmd, args, { env: process.env });
+    const killTimer = setTimeout(() => proc.kill('SIGKILL'), 60000);
+    proc.on('close', code => {
+      clearTimeout(killTimer);
+      if (code === 0 && fs.existsSync(outPath) && fs.statSync(outPath).size > 1000) {
+        return resolve(outPath);
+      }
+      reject(new Error('Video download processing failed.'));
+    });
+    proc.on('error', err => {
+      clearTimeout(killTimer);
+      reject(err);
+    });
+  });
 }
 
 const server = http.createServer(async (req, res) => {
@@ -184,10 +348,11 @@ const server = http.createServer(async (req, res) => {
 
   const u = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
-  if (u.pathname === '/api/download' || u.pathname === '/api/stream') {
+  // 1. FAST INFO ENDPOINT (Instant metadata in 1-2s)
+  if (u.pathname === '/api/info') {
     const clientIp = req.socket.remoteAddress;
     if (limited(clientIp)) {
-      return json(res, 429, { error: 'Too many requests. Try again later.' });
+      return json(res, 429, { error: 'Too many requests. Please wait a minute.' });
     }
 
     const rawUrl = u.searchParams.get('url');
@@ -202,93 +367,130 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: 'Only TikTok and Instagram links are supported.' });
     }
 
-    const isPreview = u.searchParams.get('preview') === '1' || u.pathname === '/api/stream';
-    const isDownload = !isPreview && (u.searchParams.get('download') === '1' || u.pathname === '/api/download');
+    const isTikTok = /(tiktok\.com)$/i.test(target.hostname);
+    const platform = u.searchParams.get('platform') || (isTikTok ? 'tiktok' : 'instagram');
 
-    // Check if video is already cached in temp
+    try {
+      const meta = await resolveVideoMeta(target.href, platform);
+      return json(res, 200, {
+        ok: true,
+        platform: meta.platform,
+        title: meta.title,
+        author: meta.author,
+        cover: meta.cover,
+        duration: meta.duration
+      });
+    } catch (e) {
+      console.error('Info resolution error:', e.message);
+      return json(res, 500, { error: e.message || 'Could not fetch video info. Make sure the post is public.' });
+    }
+  }
+
+  // 2. STREAMING ENDPOINT (Progressive streaming directly to HTML5 <video>)
+  if (u.pathname === '/api/stream') {
+    const rawUrl = u.searchParams.get('url');
+    let target;
+    try {
+      target = new URL(rawUrl);
+    } catch {
+      return json(res, 400, { error: 'Invalid link.' });
+    }
+
+    if (!/^https?:$/.test(target.protocol) || !HOSTS.test(target.hostname)) {
+      return json(res, 400, { error: 'Unsupported URL.' });
+    }
+
+    // Check if video is already cached on disk
     const cached = videoCache.get(target.href);
     if (cached && fs.existsSync(cached.filePath)) {
-      return streamVideoFile(req, res, cached.filePath, isDownload);
+      return streamVideoFile(req, res, cached.filePath, false);
     }
 
     const isTikTok = /(tiktok\.com)$/i.test(target.hostname);
-    const out = path.join(os.tmpdir(), `clip-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`);
+    const platform = u.searchParams.get('platform') || (isTikTok ? 'tiktok' : 'instagram');
 
-    // For TikTok, direct fetch provides fast, anti-bot-resistant downloads
-    if (isTikTok) {
-      try {
-        console.log('Downloading TikTok video via direct API for:', target.href);
-        await downloadTikTokDirect(target.href, out);
-        if (fs.existsSync(out) && fs.statSync(out).size > 1000) {
-          videoCache.set(target.href, { filePath: out, size: fs.statSync(out).size, timestamp: Date.now() });
-          return streamVideoFile(req, res, out, isDownload);
+    try {
+      const meta = await resolveVideoMeta(target.href, platform);
+      const streamTargetUrl = meta.playUrl || meta.directUrl;
+
+      // If we have a direct stream URL (from TikTok API or yt-dlp json), proxy stream it instantly!
+      if (streamTargetUrl) {
+        const range = req.headers.range;
+        const forwardHeaders = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+        };
+        if (isTikTok) forwardHeaders['Referer'] = 'https://www.tiktok.com/';
+        if (range) forwardHeaders['Range'] = range;
+
+        const vidRes = await fetch(streamTargetUrl, {
+          headers: forwardHeaders
+        });
+
+        if (vidRes.ok || vidRes.status === 206) {
+          setCors(res);
+          res.setHeader('Content-Type', vidRes.headers.get('content-type') || 'video/mp4');
+          res.setHeader('Accept-Ranges', 'bytes');
+          if (vidRes.headers.get('content-length')) res.setHeader('Content-Length', vidRes.headers.get('content-length'));
+          if (vidRes.headers.get('content-range')) res.setHeader('Content-Range', vidRes.headers.get('content-range'));
+          res.writeHead(vidRes.status);
+
+          const nodeStream = Readable.fromWeb(vidRes.body);
+          nodeStream.on('error', () => {});
+          res.on('close', () => {
+            try { nodeStream.destroy(); } catch {}
+          });
+          return nodeStream.pipe(res);
         }
-      } catch (directErr) {
-        console.warn('Direct TikTok download failed, falling back to yt-dlp:', directErr.message);
       }
+
+      // Fallback: download to temp and stream
+      const out = path.join(os.tmpdir(), `${platform}-${Date.now()}.mp4`);
+      await downloadFullVideo(target.href, out, meta);
+      videoCache.set(target.href, { filePath: out, size: fs.statSync(out).size, timestamp: Date.now() });
+      return streamVideoFile(req, res, out, false);
+    } catch (e) {
+      console.error('Streaming error:', e.message);
+      return json(res, 502, { error: 'Could not stream video. Post may be private or unavailable.' });
     }
-
-    // Default & Fallback: Use yt-dlp
-    const runner = getYtDlpRunner();
-    const args = [
-      ...runner.baseArgs,
-      '--no-playlist',
-      '--no-warnings',
-      '--no-check-certificates',
-      '--extractor-retries', '3',
-      '--socket-timeout', '30',
-      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-      '-f', 'mp4/best[ext=mp4]/best',
-      '--merge-output-format', 'mp4',
-      '-o', out,
-      '--', target.href
-    ];
-
-    let responded = false;
-    let stderrData = '';
-
-    const p = spawn(runner.cmd, args, { env: process.env });
-    const killTimeout = setTimeout(() => {
-      p.kill('SIGKILL');
-    }, 90000);
-
-    if (p.stderr) {
-      p.stderr.on('data', chunk => {
-        stderrData += chunk.toString();
-      });
-    }
-
-    p.on('error', async err => {
-      clearTimeout(killTimeout);
-      if (responded || res.headersSent) return;
-      responded = true;
-      console.error('yt-dlp execution error:', err.message);
-      json(res, 500, { error: 'Could not process video on the server.' });
-    });
-
-    p.on('close', async code => {
-      clearTimeout(killTimeout);
-      if (responded || res.headersSent) return;
-      responded = true;
-
-      if (code === 0 && fs.existsSync(out) && fs.statSync(out).size > 1000) {
-        videoCache.set(target.href, { filePath: out, size: fs.statSync(out).size, timestamp: Date.now() });
-        return streamVideoFile(req, res, out, isDownload);
-      }
-
-      console.error(`yt-dlp exited with code ${code}. Stderr:\n${stderrData}`);
-      let clientMsg = 'Could not download that video. Make sure the post is public and accessible.';
-      if (stderrData.includes('Private') || stderrData.includes('Login required') || stderrData.includes('login')) {
-        clientMsg = 'This post is private or requires login.';
-      } else if (stderrData.includes('Video unavailable') || stderrData.includes('not found') || stderrData.includes('404')) {
-        clientMsg = 'Video not found or has been deleted.';
-      }
-      return json(res, 502, { error: clientMsg });
-    });
-    return;
   }
 
-  // Static files handling
+  // 3. DOWNLOAD ENDPOINT (Full HD file attachment)
+  if (u.pathname === '/api/download') {
+    const rawUrl = u.searchParams.get('url');
+    let target;
+    try {
+      target = new URL(rawUrl);
+    } catch {
+      return json(res, 400, { error: 'Invalid link.' });
+    }
+
+    if (!/^https?:$/.test(target.protocol) || !HOSTS.test(target.hostname)) {
+      return json(res, 400, { error: 'Unsupported URL.' });
+    }
+
+    const isTikTok = /(tiktok\.com)$/i.test(target.hostname);
+    const platform = u.searchParams.get('platform') || (isTikTok ? 'tiktok' : 'instagram');
+    const downloadFilename = `${platform}-${Date.now()}.mp4`;
+
+    // Check if already in cache
+    const cached = videoCache.get(target.href);
+    if (cached && fs.existsSync(cached.filePath)) {
+      return streamVideoFile(req, res, cached.filePath, true, downloadFilename);
+    }
+
+    try {
+      const meta = await resolveVideoMeta(target.href, platform).catch(() => ({}));
+      const out = path.join(os.tmpdir(), `${platform}-${Date.now()}.mp4`);
+      await downloadFullVideo(target.href, out, meta);
+      videoCache.set(target.href, { filePath: out, size: fs.statSync(out).size, timestamp: Date.now() });
+      return streamVideoFile(req, res, out, true, downloadFilename);
+    } catch (e) {
+      console.error('Download error:', e.message);
+      return json(res, 502, { error: 'Could not download video. Make sure the post is public.' });
+    }
+  }
+
+  // 4. STATIC ASSETS
   let reqPath = u.pathname === '/' ? '/index.html' : u.pathname;
   let file = path.join(__dirname, 'public', path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, ''));
 
@@ -306,6 +508,6 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Clip Saver running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Clip Saver running on http://0.0.0.0:${PORT}`);
 });
