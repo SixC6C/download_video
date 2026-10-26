@@ -4,6 +4,7 @@
   "description": "TikTok & Instagram video previewer and downloader web app",
   "main": "server.js",
   "scripts": {
+    "postinstall": "node setup-bin.js",
     "start": "node server.js"
   },
   "keywords": [

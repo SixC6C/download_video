@@ -5,3 +5,4 @@ node_modules/
 *.m4a
 *.tmp
 .env
+bin/

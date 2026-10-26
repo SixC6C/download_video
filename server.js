@@ -67,14 +67,16 @@ if (extraPaths.length > 0) {
 
 let cachedRunner = null;
 
-function getYtDlpRunner() {
+async function ensureYtDlpBinary() {
   if (cachedRunner) return cachedRunner;
 
-  const binPath = path.join(__dirname, 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+  const isWin = process.platform === 'win32';
+  const binName = isWin ? 'yt-dlp.exe' : 'yt-dlp';
+  const binPath = path.join(__dirname, 'bin', binName);
   const userBin = path.join(os.homedir(), '.local', 'bin', 'yt-dlp');
 
   const candidates = [
-    ...(fs.existsSync(binPath) ? [{ cmd: binPath, baseArgs: [] }] : []),
+    ...(fs.existsSync(binPath) && fs.statSync(binPath).size > 1000000 ? [{ cmd: binPath, baseArgs: [] }] : []),
     ...(fs.existsSync(userBin) ? [{ cmd: userBin, baseArgs: [] }] : []),
     ...(fs.existsSync('/root/.local/bin/yt-dlp') ? [{ cmd: '/root/.local/bin/yt-dlp', baseArgs: [] }] : []),
     ...(fs.existsSync('/usr/local/bin/yt-dlp') ? [{ cmd: '/usr/local/bin/yt-dlp', baseArgs: [] }] : []),
@@ -91,32 +93,47 @@ function getYtDlpRunner() {
     try {
       const res = spawnSync(item.cmd, [...item.baseArgs, '--version'], { encoding: 'utf8', env: process.env });
       if (!res.error && res.status === 0) {
-        console.log(`Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
+        console.log(`[runner] Using yt-dlp runner: ${item.cmd} ${item.baseArgs.join(' ')} (version: ${res.stdout.trim()})`);
         cachedRunner = item;
         return item;
       }
     } catch {}
   }
 
-  // On-demand self-healing download if missing in container
+  // Not found in system: automatically acquire standalone binary using native Node.js fetch (no curl needed!)
   try {
     const binDir = path.join(__dirname, 'bin');
     if (!fs.existsSync(binDir)) fs.mkdirSync(binDir, { recursive: true });
-    const dlUrl = process.platform === 'win32'
+
+    const dlUrl = isWin
       ? 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe'
       : 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
-    console.log(`Attempting on-demand standalone yt-dlp download from ${dlUrl}...`);
-    const curlRes = spawnSync('curl', ['-L', dlUrl, '-o', binPath], { env: process.env });
-    if (curlRes.status === 0 && fs.existsSync(binPath)) {
-      if (process.platform !== 'win32') fs.chmodSync(binPath, 0o755);
-      console.log('Successfully acquired standalone yt-dlp binary at', binPath);
+
+    console.log(`[runner] Downloading standalone yt-dlp binary from ${dlUrl}...`);
+    const resp = await fetch(dlUrl, { redirect: 'follow' });
+    if (resp.ok) {
+      const buf = Buffer.from(await resp.arrayBuffer());
+      fs.writeFileSync(binPath, buf);
+      if (!isWin) fs.chmodSync(binPath, 0o755);
+      console.log(`[runner] Successfully installed standalone yt-dlp binary (${buf.length} bytes) to ${binPath}`);
       cachedRunner = { cmd: binPath, baseArgs: [] };
       return cachedRunner;
     }
   } catch (err) {
-    console.error('On-demand yt-dlp download failed:', err.message);
+    console.error('[runner] Standalone yt-dlp download failed:', err.message);
   }
 
+  return { cmd: 'yt-dlp', baseArgs: [] };
+}
+
+function getYtDlpRunner() {
+  if (cachedRunner) return cachedRunner;
+  const isWin = process.platform === 'win32';
+  const binPath = path.join(__dirname, 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
+  if (fs.existsSync(binPath) && fs.statSync(binPath).size > 1000000) {
+    cachedRunner = { cmd: binPath, baseArgs: [] };
+    return cachedRunner;
+  }
   return { cmd: 'yt-dlp', baseArgs: [] };
 }
 
@@ -220,7 +237,7 @@ async function resolveVideoMeta(targetUrl, platform) {
   }
 
   // Instagram or TikTok fallback: yt-dlp metadata dump (~1.5-2.5s)
-  const runner = getYtDlpRunner();
+  const runner = await ensureYtDlpBinary();
   const args = [
     ...runner.baseArgs,
     '--dump-single-json',
@@ -348,7 +365,7 @@ async function downloadFullVideo(targetUrl, outPath, meta) {
     }
   }
 
-  const runner = getYtDlpRunner();
+  const runner = await ensureYtDlpBinary();
   const args = [
     ...runner.baseArgs,
     '--no-playlist',
@@ -551,4 +568,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Clip Saver running on http://0.0.0.0:${PORT}`);
+  ensureYtDlpBinary().catch(e => console.warn('Warmup yt-dlp warning:', e.message));
 });
